@@ -47,7 +47,7 @@ Resources:
       # ExecutionRoleArn: !Sub ${SageMakerRole}
       ExecutionRoleArn: 
         Fn::ImportValue:
-          !Sub "${ParentStackName}-smr" 
+          !Sub "${ParentStackName}-sagemaker-role-arn" 
       PrimaryContainer:
         ModelDataUrl: !Sub ${ModelData}
         Image: !Sub ${ContainerImage}

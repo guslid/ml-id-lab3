@@ -186,7 +186,7 @@ config_data_qa = {
         "CommitID": commit_id,
         "Environment": "qa",
         "ParentStackName": stack_name,
-        "SageMakerRole": role,
+        # "SageMakerRole": role,
         "ModelData": best_model,
         "ContainerImage": containers[boto3.Session().region_name],
         "Timestamp": current_timestamp
@@ -200,7 +200,7 @@ config_data_prod = {
         "CommitID": commit_id,
         "Environment": "prod",
         "ParentStackName": stack_name,
-        "SageMakerRole": role,
+        # "SageMakerRole": role,
         "ModelData": best_model,
         "ContainerImage": containers[boto3.Session().region_name],
         "Timestamp": current_timestamp

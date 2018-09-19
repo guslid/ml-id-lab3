@@ -392,5 +392,6 @@ Resources:
 Outputs:
   SagemakerRoleOutput:
     Description: The name of the SageMaker IAM-role used by stacks created from the pipeline 
-    Value: !Ref SagemakerRole
-    Export: !Sub ${AWS::StackName}-sagemaker-role-name
+    Value: !GetAtt SagemakerRole.Arn
+    Export: 
+        Name: !Sub ${AWS::StackName}-sagemaker-role-arn
