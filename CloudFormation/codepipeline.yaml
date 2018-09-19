@@ -51,7 +51,7 @@ Resources:
   ArtifactStoreBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub ${AWS::StackName}-peerjako-pipeline-artifact-store
+      BucketName: !Sub ${AWS::StackName}-pipeline-artifact-store
       VersioningConfiguration:
         Status: Enabled
 
@@ -389,3 +389,8 @@ Resources:
                   - s3:*
                 Effect: Allow
                 Resource: '*'
+Outputs:
+  SagemakerRoleOutput:
+    Description: The name of the SageMaker IAM-role used by stacks created from the pipeline 
+    Value: !Ref SagemakerRole
+    Export: !Sub ${AWS::StackName}-sagemaker-role-name

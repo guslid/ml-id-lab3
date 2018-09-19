@@ -29,11 +29,11 @@ Parameters:
     Description: Docker image used for prediction endpoint
     MinLength: '1'
     Type: String
-  SageMakerRole:
-    Description: Name of SageMaker role
-    MaxLength: '64'
-    MinLength: '1'
-    Type: String
+  # SageMakerRole:
+  #   Description: Name of SageMaker role
+  #   MaxLength: '64'
+  #   MinLength: '1'
+  #   Type: String
   Timestamp:
     Description: Resource timestamp to prevent naming conflicts
     MaxLength: '64'
@@ -44,7 +44,10 @@ Resources:
     Type: "AWS::SageMaker::Model"
     Properties:
       ModelName: !Sub ${Environment}-${ParentStackName}-${CommitID}-${Timestamp}
-      ExecutionRoleArn: !Sub ${SageMakerRole}
+      # ExecutionRoleArn: !Sub ${SageMakerRole}
+      ExecutionRoleArn: 
+        Fn::ImportValue:
+          !Sub "${ParentStackName}-smr" 
       PrimaryContainer:
         ModelDataUrl: !Sub ${ModelData}
         Image: !Sub ${ContainerImage}

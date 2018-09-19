@@ -2,6 +2,7 @@ import sagemaker
 import sagemaker.amazon.common as smac
 from sagemaker import get_execution_role
 from sagemaker.predictor import json_deserializer
+from sagemaker.tuner import HyperparameterTuner, IntegerParameter, ContinuousParameter, CategoricalParameter
 
 import boto3, csv, io, json, re, os, sys, pprint, time, random
 from time import gmtime, strftime
@@ -11,9 +12,13 @@ from scipy.sparse import lil_matrix
 
 # sagemaker containers for factorization machines
 containers = {'us-west-2': '174872318107.dkr.ecr.us-west-2.amazonaws.com/factorization-machines:latest',
-              'us-east-1': '382416733822.dkr.ecr.us-east-1.amazonaws.com/factorization-machines:latest',
-              'us-east-2': '404615174143.dkr.ecr.us-east-2.amazonaws.com/factorization-machines:latest',
-              'eu-west-1': '438346466558.dkr.ecr.eu-west-1.amazonaws.com/factorization-machines:latest'}
+             'us-east-1': '382416733822.dkr.ecr.us-east-1.amazonaws.com/factorization-machines:latest',
+             'us-east-2': '404615174143.dkr.ecr.us-east-2.amazonaws.com/factorization-machines:latest',
+             'ap-northeast-1': '351501993468.dkr.ecr.ap-northeast-1.amazonaws.com/factorization-machines:latest',
+             'ap-northeast-2': '835164637446.dkr.ecr.ap-northeast-2.amazonaws.com/factorization-machines:latest',
+             'ap-southeast-2': '712309505854.dkr.ecr.ap-southeast-2.amazonaws.com/factorization-machines:latest',
+             'eu-central-1': '664544806723.dkr.ecr.eu-central-1.amazonaws.com/factorization-machines:latest',
+             'eu-west-1': '438346466558.dkr.ecr.eu-west-1.amazonaws.com/factorization-machines:latest'}
 
 start = time.time()
 current_timestamp = time.strftime('%Y-%m-%d-%H-%M-%S', time.gmtime())
@@ -116,9 +121,8 @@ print(train_data)
 print(test_data)
 print('Output: {}'.format(output_prefix))
 
-#
-# Run the training job
-#
+best_model = ""
+
 job_name = stack_name + "-" + commit_id
 
 fm = sagemaker.estimator.Estimator(containers[boto3.Session().region_name],
@@ -129,14 +133,48 @@ fm = sagemaker.estimator.Estimator(containers[boto3.Session().region_name],
                                    base_job_name=job_name,
                                    sagemaker_session=sagemaker.Session())
 
-fm.set_hyperparameters(feature_dim=nbFeatures,
-                      predictor_type='binary_classifier',
-                      mini_batch_size=1000,
-                      num_factors=64,
-                      epochs=100)
+no_hyper_parameter_tuning = True
 
-fm.fit({'train': train_data, 'test': test_data})
+if (no_hyper_parameter_tuning):
+    #
+    # Run the training job
+    #
+    fm.set_hyperparameters(feature_dim=nbFeatures,
+                          predictor_type='binary_classifier',
+                          mini_batch_size=1000,
+                          num_factors=64,
+                          epochs=100)
 
+    fm.fit({'train': train_data, 'test': test_data})
+
+    best_model = fm.model_data
+else:
+    fm.set_hyperparameters(feature_dim=nbFeatures,
+                          predictor_type='binary_classifier',
+                          mini_batch_size=1000,
+                          num_factors=64,
+                          epochs=100)
+
+    my_tuner = HyperparameterTuner(
+        estimator=fm,
+        objective_metric_name='test:binary_classification_accuracy',
+        hyperparameter_ranges={
+            'epochs': IntegerParameter(1, 200),
+            'mini_batch_size': IntegerParameter(10, 10000),
+            'factors_wd': ContinuousParameter(1e-8, 512)},
+        max_jobs=4,
+        max_parallel_jobs=4)
+
+    my_tuner.fit({'train': train_data, 'test': test_data}, include_cls_metadata = False)
+
+    my_tuner.wait()
+
+    #sm_session = sagemaker.Session()
+    #best_log = sm_session.logs_for_job(my_tuner.best_training_job())
+    #print(best_log)
+    best_model = '{}/{}/output/model.tar.gz'.format(output_prefix, my_tuner.best_training_job())
+
+print('Best model: {}'.format(best_model))
 #
 # Save config files to be used later for qa and prod sagemaker endpoint configurations
 # and for prediction tests
@@ -149,7 +187,7 @@ config_data_qa = {
         "Environment": "qa",
         "ParentStackName": stack_name,
         "SageMakerRole": role,
-        "ModelData": fm.model_data,
+        "ModelData": best_model,
         "ContainerImage": containers[boto3.Session().region_name],
         "Timestamp": current_timestamp
     }
@@ -163,7 +201,7 @@ config_data_prod = {
         "Environment": "prod",
         "ParentStackName": stack_name,
         "SageMakerRole": role,
-        "ModelData": fm.model_data,
+        "ModelData": best_model,
         "ContainerImage": containers[boto3.Session().region_name],
         "Timestamp": current_timestamp
     }

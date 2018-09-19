@@ -1,3 +1,5 @@
+
+
 # Lab3 - CI/CD with Sagemaker
 
 In the third lab you are going to create a full CI/CD pipeline for your machine learning model so you can develop, test and deploy machine learning models in an efficient, safe and repeatable manner.
@@ -159,38 +161,45 @@ Now that you have a GitHub repo with your AWS infrastructure code and your machi
 
 13. You should see a pipeline that consists of 4 different stages:
 
+1. **Source** - this stage pulls the input source files from the GitHub repo you created earlier. The source files are zipped and uploaded to an S3 bucket. This source zip-file will then serve as input to the following pipeline stages. Every time you push new commits into your GitHub repo, the pipeline will execute again automatically pulling your latests commits. You can see the the S3 pipeline artifact bucket in the S3 management console: https://s3.console.aws.amazon.com/s3/home
 
-      1. **Source** - this stage pulls the input source files from the GitHub repo you created earlier. The source files are zipped and uploaded to an S3 bucket. This source zip-file will then serve as input to the following pipeline stages. Every time you push new commits into your GitHub repo, the pipeline will execute again automatically pulling your latests commits. You can see the the S3 pipeline artifact bucket in the S3 management console: https://s3.console.aws.amazon.com/s3/home
-        The bucket is called something like **[Your-Initials]-ml-lab3-[Your-Initials]-pipeline-artifact-store**
-    
-      2. **Build_and_Train** - This stage runs a CodeBuild build using a python 3.4.5 build container. It runs the **prepdata.py** and **train.py** python scripts that you can find in the **Source** directory of your GitHub repo. 
-    
-     ```
-     - prepdata.py - This python script is very similar to the first part of the python notebook you ran manually in lab 2. It ends up creating a training data file and test data file that can be used by the Sagemaker training. It uses Athena to dynamically get some of the parameters that were hardcoded in the lab 2 notebook.
-     - train.py - This python script is similar to the training part of the python notebook you ran manually in lab 2. It creates a training job in Sagemaker which ends up producing an ML model that you can you can use for ML inference through Sagemaker endpoints.
-     ```
-    
-      After the two scripts have executed, CodeBuild packages and uploads the build artifacts to an S3 bucket. In this case the artifacts include the test data file and some config files used in the next pipeline stages.
-    
-     If you click the **Details** link of the **Build_and_Train** stage then you will go to the CodeBuild details page. In the bottom of CodeBuild details page you can see the build logs. You will find these logs very similar to the logs you saw when running the python notebook in lab 2.
-    
-      ![image-20180903113555848](images/image-codepipeline-buildandtrain.png)
-    
-      3. **QA** - this stage uses the CloudFormation template file **sagemaker_prediction_endpoint.yaml** found in the **CloudFormation** directory. CloudFormation is used to launch a Sagemaker QA Endpoint based on the ML model created in the Build_and_Train stage. 
-    
-        When the Sagemaker QA Endpoint has launched (this can take up to 5 minutes) the Endpoint is tested by running a CodeBuild build that executes the **test.py** python script foind in the **Source** directory. This python script is very similar to the last part of the python notebook you ran manually in lab 2. It will call the Sagemaker endpoint and compare the inference results with the results from the test data file. If less than 80% of the inferences are not producing the same result as found in the test data file, then an exception is thrown and the pipeline stage will fail.
-    
-        If you click the **Details** link of the **LaunchEnpoint** step then you will go to details of the CloudFormation stack of the Sagemaker Endpoint.
-    
-        If you click the **Details** link of the TestEndpoint step then you will go to the CodeBuild build details. 
-    
-        ![image-20180903113958361](images/image-codepipeline-qa.png)
-    
-        Click the **Details** link of the TestEndpoint and scroll all the way down on that page to see the build logs. In the build logs you will see the result of the tests including how many tests was correctly predicted. With a **Match Rate** of 80% you can see that the test barely passes our 80% threshold. In the Bonus part of this lab we will improve this match rate.
-    
-        ![image-20180903125738578](images/image-codepipeline-qa-testresults.png)
-    
-      4. **Production** - this stage first starts with an approval gate. In order to continue the pipeline you have to manually approve. Click the **Review** button.
+   The bucket is called something like **[Your-Initials]-ml-lab3-[Your-Initials]-pipeline-artifact-store**
+
+
+
+2. **Build_and_Train** - This stage runs a CodeBuild build using a python 3.4.5 build container. It runs the **prepdata.py** and **train.py** python scripts that you can find in the **Source** directory of your GitHub repo. 
+
+   ```
+   - prepdata.py - This python script is very similar to the first part of the python notebook you ran manually in lab 2. It ends up creating a training data file and test data file that can be used by the Sagemaker training. It uses Athena to dynamically get some of the parameters that were hardcoded in the lab 2 notebook.
+   
+   - train.py - This python script is similar to the training part of the python notebook you ran manually in lab 2. It creates a training job in Sagemaker which ends up producing an ML model that you can you can use for ML inference through Sagemaker endpoints.
+   ```
+
+   After the two scripts have executed, CodeBuild packages and uploads the build artifacts to an S3 bucket. In this case the artifacts include the test data file and some config files used in the next pipeline stages.
+
+   If you click the **Details** link of the **Build_and_Train** stage then you will go to the CodeBuild details page. In the bottom of CodeBuild details page you can see the build logs. You will find these logs very similar to the logs you saw when running the python notebook in lab 2.
+
+  ![image-20180903113555848](images/image-codepipeline-buildandtrain.png)
+
+
+
+  3. **QA** - this stage uses the CloudFormation template file **sagemaker_prediction_endpoint.yaml** found in the **CloudFormation** directory. CloudFormation is used to launch a Sagemaker QA Endpoint based on the ML model created in the Build_and_Train stage. 
+
+    When the Sagemaker QA Endpoint has launched (this can take up to 5 minutes) the Endpoint is tested by running a CodeBuild build that executes the **test.py** python script foind in the **Source** directory. This python script is very similar to the last part of the python notebook you ran manually in lab 2. It will call the Sagemaker endpoint and compare the inference results with the results from the test data file. If less than 80% of the inferences are not producing the same result as found in the test data file, then an exception is thrown and the pipeline stage will fail.
+
+    If you click the **Details** link of the **LaunchEnpoint** step then you will go to details of the CloudFormation stack of the Sagemaker Endpoint.
+
+    If you click the **Details** link of the TestEndpoint step then you will go to the CodeBuild build details. 
+
+    ![image-20180903113958361](images/image-codepipeline-qa.png)
+
+    Click the **Details** link of the TestEndpoint and scroll all the way down on that page to see the build logs. In the build logs you will see the result of the tests including how many tests was correctly predicted. With a **Match Rate** of 80% you can see that the test barely passes our 80% threshold. In the Bonus part of this lab we will improve this match rate.
+
+    ![image-20180903125738578](images/image-codepipeline-qa-testresults.png)
+
+
+
+4. **Production** - this stage first starts with an approval gate. In order to continue the pipeline you have to manually approve. Click the **Review** button.
 
    ![image-20180903114730563](images/image-codepipeline-approve.png)
 
@@ -219,9 +228,35 @@ You might already be using a CI/CD solution in your job such as Jenkins, CircleC
 
 ### <a name="head1">Bonus Exercise: Add Sagemaker Hyperparameter tuning to your Sagemaker training</a>
 
-TODO:
+1. Create an hyperparameter tuner.
 
-1. add hyperparameter tuning to train.py script
-2. git push
-3. verify QA logs to see how inference quality has improved
-4. 
+   ``` python
+   # Configure HyperparameterTuner
+   from sagemaker.tuner import HyperparameterTuner, IntegerParameter, ContinuousParameter
+   
+   my_tuner = HyperparameterTuner(
+       estimator=fm,
+       objective_metric_name='test:binary_classification_accuracy',
+       hyperparameter_ranges={
+           'epochs': IntegerParameter(1, 200), 
+           'mini_batch_size': IntegerParameter(10, 10000), 
+           'factors_wd': ContinuousParameter(1e-8, 512)},
+       max_jobs=100,
+       max_parallel_jobs=10)
+   ```
+
+2. Run hyper parameter-tuning training batch 
+
+   ```python
+   my_tuner.fit({'train': train_data, 'test': test_data}, include_cls_metadata = False
+   ```
+
+3. Monitor progress of training in console
+
+4. Print log of best training job
+
+   ```python
+   sm_session = sagemaker.session.Session(boto3.Session())
+   best_log = sm_session.logs_for_job(my_tuner.best_training_job())
+   print best_log
+   ```
